@@ -1,5 +1,5 @@
 <mujoco model="turtlebot3_burger">
-  <compiler angle="radian" meshdir="assets/"/>
+  <compiler angle="radian" />
 
   <asset>
     <material name="grey" rgba="0.3 0.3 0.3 1"/>
@@ -41,6 +41,9 @@
       <geom size="0.005" pos="-0.081 0 0.005" type="sphere" material="grey" friction="0.0001 0.0001 0.0001" solref="0.02 1" solimp="0.95 0.99 0.001" condim="1"/>
       <geom pos="-0.032 0 0.182" mesh="lds" material="black" class="visual"/>
       <geom pos="-0.032 0 0.182" mesh="lds" class="collision"/>
+      <!-- Sensors -->
+      <camera name="front_camera" pos="0.06 0 0.11" xyaxes="0 -1 0 0 0 1" fovy="60"/>
+      <site name="lidar_site" pos="-0.032 0 0.182" size="0.01" rgba="1 0 0 0"/>
       <body name="wheel_left" pos="0 0.08 0.033" quat="0.707388 -0.706825 0 0">
         <inertial pos="0 0 0" quat="-0.000890159 0.706886 0.000889646 0.707326" mass="0.0284989" diaginertia="2.07126e-05 1.11924e-05 1.11756e-05"/>
         <joint name="wheel_left" class="wheel_left"/>

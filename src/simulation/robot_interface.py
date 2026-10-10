@@ -9,6 +9,7 @@ class TurtleBotSim:
         self.model = mujoco.MjModel.from_xml_path(scene_path)
         self.data = mujoco.MjData(self.model)
         self.model.opt.timestep = dt
+        self.dt = dt
 
         self.r = 0.033   # Wheel radius (m)
         self.W = 0.160   # Wheelbase (m)

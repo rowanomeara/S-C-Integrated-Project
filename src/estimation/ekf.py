@@ -9,7 +9,7 @@ def wrap(a):
 
 
 class RobotEKF:
-    def __init__(self, x0=np.array([-1.7, 0.5, -np.pi/2])):
+    def __init__(self, x0=np.array([1.2, 0.0, np.pi])):
         self.x = x0.astype(float)                # State estimate [x, y, theta]
         self.P = np.diag([0.1**2, 0.1**2, np.deg2rad(5)**2])  # Initial covariance
 
@@ -34,7 +34,7 @@ class RobotEKF:
         # Covariance propagation
         self.P = F @ self.P @ F.T + self.Q
 
-    def update_aruco(self, r_meas, phi_meas, dock_pos=np.array([-1.2, 0.1])):
+    def update_aruco(self, r_meas, phi_meas, dock_pos=np.array([-1.69, 0.0])):
         #landmark range & bearing to update measurement 
         dx = dock_pos[0] - self.x[0]
         dy = dock_pos[1] - self.x[1]

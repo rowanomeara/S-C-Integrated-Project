@@ -6,8 +6,9 @@ class ArucoDetector:
     def __init__(self):
         aruco_dict = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_4X4_50)
         self.detector = cv2.aruco.ArucoDetector(aruco_dict)
-        self.focal_length = 554.0   # for 60 deg FOV, 640x480
-        self.marker_real_size = 0.08  # 80 mm
+        # MJ camera: fovy=60, 640x480, box half-size 0.08
+        self.focal_length = 415.69
+        self.marker_real_size = 0.1568
 
     def detect(self, img_rgb):
         #range + bearing -> marker in robot frame 

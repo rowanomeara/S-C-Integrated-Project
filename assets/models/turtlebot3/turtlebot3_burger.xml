@@ -14,8 +14,8 @@
   <default>
     <!-- Wheel motor -->
     <default class="wheel">
-      <joint limited="false" frictionloss="0.1" armature="0.01"/>
-      <velocity kv="0.1" ctrlrange="-6.67 6.67" ctrllimited="true"/>
+      <joint limited="false" frictionloss="0.005" armature="0.01"/>
+      <velocity kv="1.0" ctrlrange="-12.0 12.0" ctrllimited="true"/>
       <default class="wheel_left">
         <joint axis="0 0 1"/>
       </default>

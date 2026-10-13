@@ -35,7 +35,12 @@ class RobotEKF:
         self.P = F @ self.P @ F.T + self.Q
 
     def update_aruco(self, r_meas, phi_meas, dock_pos=np.array([-1.69, 0.0])):
-        #landmark range & bearing to update measurement 
+        """
+        EKF Measurement Update with Visual Servoing:
+        Uses exteroceptive camera measurements z = [r, phi]^T of the fixed ArUco dock
+        to bound unconstrained odometry drift and restore observability of global pose [x, y, theta].
+        """
+        # Predicted measurement h(x) based on current state estimate
         dx = dock_pos[0] - self.x[0]
         dy = dock_pos[1] - self.x[1]
         r_pred = np.hypot(dx, dy)

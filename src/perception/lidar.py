@@ -7,7 +7,7 @@ class LidarProcessor:
 
     def get_front_clearance(self, ranges):
         # returns (min_distance, is_clear) in front 60-degree cone (180 = straight ahead)
-        front_cone = ranges[150:210]
+        front_cone = ranges[45:360]
         min_dist = float(np.min(front_cone))
         return min_dist, min_dist > self.danger_distance
 

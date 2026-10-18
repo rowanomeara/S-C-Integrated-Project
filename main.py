@@ -101,22 +101,26 @@ def main():
                     # --- VISUAL SERVOING CONTROLLER (PBVS / Direct Optical Feedback) ---
                     # 1. Angular rate: proportional feedback on image bearing error (phi -> 0).
                     #    Zeroes the error between marker centroid and camera optical center (cx=320).
+                    dodge_timer = 0
                     cmd_w = float(np.clip(2.5 * phi, -0.6, 0.6))
                     # 2. Linear velocity: scaled by cos(phi) to slow down during turns,
                     #    preventing the marker from exiting the camera's Field of View (FOV).
                     cmd_v = float(np.clip(0.14 * np.cos(phi), 0.04, 0.14))
-                elif d_front < 0.42 and dist_to_dock > 0.4:
+                elif dodge_timer <= 0 and d_front < 0.48 and dist_to_dock > 0.4:
                     # Obstacle directly ahead -> steer around it toward clearer side
-                    if dodge_timer <= 0:
-                        dodge_dir = 1.0 if d_left >= d_right else -1.0
-                        dodge_timer = 30
-                    cmd_v = 0.04
+                    dodge_dir = 1.0 if d_left >= d_right else -1.0
+                    dodge_timer = 120
+                    cmd_v = 0.02
                     cmd_w = dodge_dir * 0.8
                 elif dodge_timer > 0:
-                    # Maintain turn to clear obstacle
+                    # Two-phase dodge: orient first, then drive past obstacle
                     dodge_timer -= 1
-                    cmd_v = 0.14
-                    cmd_w = dodge_dir * 0.3
+                    if dodge_timer > 60:
+                        cmd_v = 0.03
+                        cmd_w = dodge_dir * 0.75
+                    else:
+                        cmd_v = 0.15
+                        cmd_w = dodge_dir * 0.15
                 elif abs(heading_err) > np.deg2rad(45):
                     # Orient toward dock
                     cmd_v = 0.0

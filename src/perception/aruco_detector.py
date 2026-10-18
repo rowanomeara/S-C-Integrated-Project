@@ -3,12 +3,12 @@ import numpy as np
 
 
 class ArucoDetector:
-    def __init__(self):
+    def __init__(self, focal_length=415.69, marker_real_size=0.1568):
         aruco_dict = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_4X4_50)
         self.detector = cv2.aruco.ArucoDetector(aruco_dict)
-        # MJ camera: fovy=60, 640x480, box half-size 0.08
-        self.focal_length = 415.69
-        self.marker_real_size = 0.1568
+        # Defaults calibrated to 640x480 camera and standard 15.68cm marker
+        self.focal_length = focal_length
+        self.marker_real_size = marker_real_size
 
     def detect(self, img_rgb, annotate=False, is_docked=False):
         # range + bearing -> marker in robot frame

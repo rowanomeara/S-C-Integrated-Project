@@ -4,8 +4,16 @@ import numpy as np
 
 class ArucoDetector:
     def __init__(self, focal_length=415.69, marker_real_size=0.1568):
-        aruco_dict = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_4X4_50)
-        self.detector = cv2.aruco.ArucoDetector(aruco_dict)
+        self.aruco_dict = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_4X4_50)
+        # Compatibility across OpenCV versions: OpenCV 4.7+ uses ArucoDetector, <= 4.6 uses detectMarkers
+        if hasattr(cv2.aruco, "ArucoDetector"):
+            self.detector = cv2.aruco.ArucoDetector(self.aruco_dict)
+        else:
+            self.detector = None
+            if hasattr(cv2.aruco, "DetectorParameters_create"):
+                self.params = cv2.aruco.DetectorParameters_create()
+            else:
+                self.params = cv2.aruco.DetectorParameters()
         # Defaults calibrated to 640x480 camera and standard 15.68cm marker
         self.focal_length = focal_length
         self.marker_real_size = marker_real_size
@@ -13,7 +21,10 @@ class ArucoDetector:
     def detect(self, img_rgb, annotate=False, is_docked=False):
         # range + bearing -> marker in robot frame
         gray = cv2.cvtColor(img_rgb, cv2.COLOR_RGB2GRAY)
-        corners, ids, _ = self.detector.detectMarkers(gray)
+        if self.detector is not None:
+            corners, ids, _ = self.detector.detectMarkers(gray)
+        else:
+            corners, ids, _ = cv2.aruco.detectMarkers(gray, self.aruco_dict, parameters=self.params)
 
         annotated = cv2.cvtColor(img_rgb, cv2.COLOR_RGB2BGR) if annotate else None
 

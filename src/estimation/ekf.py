@@ -63,3 +63,4 @@ class RobotEKF:
         self.x = self.x + K @ y
         self.x[2] = wrap(self.x[2])
         self.P = (np.eye(3) - K @ H) @ self.P
+        self.P = 0.5 * (self.P + self.P.T)

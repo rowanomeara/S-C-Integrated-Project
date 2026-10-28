@@ -10,6 +10,7 @@ from src.simulation.robot_interface import TurtleBotSim
 from src.perception.aruco_detector import ArucoDetector
 from src.perception.lidar import LidarProcessor
 from src.estimation.ekf import RobotEKF, wrap
+from src.control import DockingController
 
 COLS = ["t", "x_true", "y_true", "th_true", "x_est", "y_est", "th_est",
         "x_odom", "y_odom", "th_odom", "sigma_x", "sigma_y", "sigma_th",
@@ -42,8 +43,9 @@ def run_single_trial(robot, aruco, lidar, ekf, x0, max_steps=4200):
     x_odom = x0.astype(float).copy()
     target_dock = np.array([-1.52, 0.0])
     marker_pos = np.array([-1.69, 0.0])
+    controller = DockingController(target_dock=target_dock)
 
-    records, dodge_timer, dodge_dir, docked = [], 0, 0.0, False
+    records, docked = [], False
 
     for step in range(max_steps):
         t = step * robot.dt
@@ -69,24 +71,11 @@ def run_single_trial(robot, aruco, lidar, ekf, x0, max_steps=4200):
             break
 
         ranges = robot.get_lidar_scan()
-        d_front = float(np.min(ranges[150:210]))
-        d_left, d_right = float(np.mean(ranges[195:255])), float(np.mean(ranges[105:165]))
-        heading_err = wrap(np.arctan2(target_dock[1] - ekf.x[1], target_dock[0] - ekf.x[0]) - ekf.x[2])
+        d_front, _ = lidar.get_front_clearance(ranges)
+        d_left = float(np.mean(ranges[195:255]))
+        d_right = float(np.mean(ranges[105:165]))
 
-        if r is not None and dist_to_dock < 1.0:
-            dodge_timer = 0
-            cmd_w = float(np.clip(2.5 * phi, -0.6, 0.6))
-            cmd_v = float(np.clip(0.14 * np.cos(phi), 0.04, 0.14))
-        elif dodge_timer <= 0 and d_front < 0.48 and dist_to_dock > 0.4:
-            dodge_dir = 1.0 if d_left >= d_right else -1.0
-            dodge_timer, cmd_v, cmd_w = 120, 0.02, dodge_dir * 0.8
-        elif dodge_timer > 0:
-            dodge_timer -= 1
-            cmd_v, cmd_w = (0.03, dodge_dir * 0.75) if dodge_timer > 60 else (0.15, dodge_dir * 0.15)
-        elif abs(heading_err) > np.deg2rad(45):
-            cmd_v, cmd_w = 0.0, float(np.clip(2.0 * heading_err, -0.8, 0.8))
-        else:
-            cmd_v, cmd_w = float(np.clip(0.18 * np.cos(heading_err), 0.06, 0.18)), float(np.clip(1.5 * heading_err, -0.6, 0.6))
+        cmd_v, cmd_w, _ = controller.compute(ekf.x, r, phi, d_front, d_left, d_right)
 
         robot.set_velocity(cmd_v, cmd_w)
         robot.step()

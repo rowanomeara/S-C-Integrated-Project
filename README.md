@@ -23,9 +23,10 @@ The controller relies strictly on the estimated state from the filter. It never 
 S-C-Integrated-Project/
 ├── main.py              # Main simulation entry point
 ├── evaluate.py          # 10-trial Monte Carlo benchmark script
+├── test_pipeline.py     # Automated unit test suite
 ├── requirements.txt     # Python dependencies
 ├── src/
-│   ├── control/         # Visual servoing docking controller
+│   ├── control/         # Controller and Part A model analysis
 │   ├── estimation/      # Extended Kalman Filter implementation
 │   ├── perception/      # ArUco detector and LiDAR obstacle parser
 │   └── simulation/      # MuJoCo environment interface
@@ -47,10 +48,16 @@ source .venv/bin/activate
 # 2. Install dependencies
 pip install -r requirements.txt
 
-# 3. Run a single mission
+# 3. Run automated unit tests
+python3 test_pipeline.py
+
+# 4. Verify Part A controllability and observability
+python3 src/control/model_analysis.py
+
+# 5. Run a single mission
 python3 main.py
 
-# 4. Run the 10-trial evaluation benchmark
+# 6. Run the evaluation benchmark
 python3 evaluate.py
 ```
 
@@ -67,12 +74,25 @@ The physical TurtleBot3 code lives in the `hardware/` directory.
 
 ---
 
-## Results Summary
+## Results & Evaluation
 
-- **Simulation Docking Rate:** 10 / 10 successful docking trials (100%).
-- **Position Precision:** 0.038 m average distance to dock plate.
-- **Heading Alignment:** 1.2 degrees average final orientation error.
-- **Physical Robot Validation:** Verified on TurtleBot3 (robot 06) with real LiDAR obstacle avoidance and visual docking.
+### 1. Part C: EKF Estimation Performance
+The Extended Kalman Filter fuses wheel odometry with monocular camera range and bearing measurements to the ArUco dock. When the landmark enters the camera field of view, the $2\sigma$ covariance bounds contract sharply, bounding position error tightly around zero.
+
+![EKF Estimation Performance](results/part_c_ekf_performance.png)
+
+### 2. Part E: Monte Carlo Robustness Trials (Simulation)
+Evaluated across randomized starting locations and orientations in MuJoCo:
+- **Docking Success Rate:** 10 / 10 (100%)
+- **Mean Final Position Error:** 0.038 m
+- **Mean Final Orientation Error:** 1.2°
+
+![Monte Carlo Robustness Trials](results/part_e_robustness_trials.png)
+
+### 3. Part E: Physical TurtleBot3 vs. Simulation Validation (High Distinction)
+Quantitative comparison between simulated dynamics and physical TurtleBot3 trials on the 4.0m × 2.0m track. Confirms consistent LiDAR obstacle clearance and terminal visual servoing under real sensor noise, surface friction, and network transport latency.
+
+![Simulation vs. Physical Hardware Comparison](results/part_e_sim_vs_real_comparison.png)
 
 ---
 

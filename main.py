@@ -6,6 +6,7 @@ from src.perception.aruco_detector import ArucoDetector
 from src.perception.camera_viewer import CameraWindow
 from src.perception.lidar import LidarProcessor
 from src.estimation.ekf import RobotEKF, wrap
+from src.control import DockingController
 
 
 def spawn_robot(robot, ekf, rng):
@@ -44,8 +45,7 @@ def main():
     marker_pos = np.array([-1.69, 0.0])
 
     docked = False
-    dodge_dir = 0.0
-    dodge_timer = 0
+    controller = DockingController(target_dock=target_dock)
     prev_time = robot.data.time
 
     try:
@@ -58,7 +58,7 @@ def main():
                 if robot.data.time < prev_time - 0.05:
                     spawn_robot(robot, ekf, rng)
                     docked = False
-                    dodge_timer = 0
+                    controller = DockingController(target_dock=target_dock)
                     step = 0
                 prev_time = robot.data.time
 
@@ -89,46 +89,12 @@ def main():
 
                 # 4. LiDAR scan & navigation
                 ranges = robot.get_lidar_scan()
-                d_front = float(np.min(ranges[150:210]))
+                d_front, _ = lidar.get_front_clearance(ranges)
                 d_left = float(np.mean(ranges[195:255]))
                 d_right = float(np.mean(ranges[105:165]))
 
-                angle_to_dock = np.arctan2(target_dock[1] - ekf.x[1], target_dock[0] - ekf.x[0])
-                heading_err = wrap(angle_to_dock - ekf.x[2])
-
-                # State-feedback control on estimated state
-                if r is not None and dist_to_dock < 1.0:
-                    # --- VISUAL SERVOING CONTROLLER (PBVS / Direct Optical Feedback) ---
-                    # 1. Angular rate: proportional feedback on image bearing error (phi -> 0).
-                    #    Zeroes the error between marker centroid and camera optical center (cx=320).
-                    dodge_timer = 0
-                    cmd_w = float(np.clip(2.5 * phi, -0.6, 0.6))
-                    # 2. Linear velocity: scaled by cos(phi) to slow down during turns,
-                    #    preventing the marker from exiting the camera's Field of View (FOV).
-                    cmd_v = float(np.clip(0.14 * np.cos(phi), 0.04, 0.14))
-                elif dodge_timer <= 0 and d_front < 0.48 and dist_to_dock > 0.4:
-                    # Obstacle directly ahead -> steer around it toward clearer side
-                    dodge_dir = 1.0 if d_left >= d_right else -1.0
-                    dodge_timer = 120
-                    cmd_v = 0.02
-                    cmd_w = dodge_dir * 0.8
-                elif dodge_timer > 0:
-                    # Two-phase dodge: orient first, then drive past obstacle
-                    dodge_timer -= 1
-                    if dodge_timer > 60:
-                        cmd_v = 0.03
-                        cmd_w = dodge_dir * 0.75
-                    else:
-                        cmd_v = 0.15
-                        cmd_w = dodge_dir * 0.15
-                elif abs(heading_err) > np.deg2rad(45):
-                    # Orient toward dock
-                    cmd_v = 0.0
-                    cmd_w = float(np.clip(2.0 * heading_err, -0.8, 0.8))
-                else:
-                    # Drive forward towards dock
-                    cmd_v = float(np.clip(0.18 * np.cos(heading_err), 0.06, 0.18))
-                    cmd_w = float(np.clip(1.5 * heading_err, -0.6, 0.6))
+                # State-feedback control on estimated state (PBVS + Obstacle Avoidance)
+                cmd_v, cmd_w, _ = controller.compute(ekf.x, r, phi, d_front, d_left, d_right)
 
                 robot.set_velocity(cmd_v, cmd_w)
                 robot.step()

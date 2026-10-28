@@ -12,13 +12,14 @@ from src.perception.aruco_detector import ArucoDetector
 
 
 def test_hardware():
+    host = sys.argv[1] if len(sys.argv) > 1 and not sys.argv[1].isdigit() else "192.168.1.206"
     cam_id = int(sys.argv[1]) if len(sys.argv) > 1 and sys.argv[1].isdigit() else 0
     print(f"\n=======================================================")
-    print(f" TURTLEBOT3 HARDWARE PRE-FLIGHT CHECK (Camera ID: {cam_id})")
+    print(f" TURTLEBOT3 HARDWARE PRE-FLIGHT CHECK ({host})")
     print(f"=======================================================")
 
     try:
-        robot = TurtleBotReal(camera_id=cam_id)
+        robot = TurtleBotReal(host=host, camera_id=cam_id)
     except Exception as e:
         print(f"\n❌ [CRITICAL] Failed to initialize robot HAL: {e}")
         return False
@@ -47,7 +48,7 @@ def test_hardware():
         time.sleep(0.1)
 
     if frame is not None:
-        r, phi, _ = aruco.detect(frame, annotate=False)
+        r, phi = aruco.detect(frame, annotate=False)
         status_str = f"ArUco SIGHTED (r={r:.2f}m)" if r is not None else "Frame OK (No ArUco in view)"
         print(f" [3/4] Camera:    Frame shape {frame.shape} | {status_str} -> ✅ PASS")
     else:

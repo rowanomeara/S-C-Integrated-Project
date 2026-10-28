@@ -4,16 +4,23 @@ import numpy as np
 import cv2
 
 # Hardware Abstraction Layer (HAL) for physical TurtleBot3
-# Auto-detects ROS 2 (rclpy) or ROS 1 (rospy)
+# Supports:
+#  1. rosbridge WebSocket API (running directly from student laptop via UTS-RI/turtlebot_rosbridge)
+#  2. Onboard ROS 2 (rclpy) / ROS 1 (rospy) if executed directly on the robot
+#  3. Local V4L2 device fallback
+
 
 class TurtleBotReal:
-    def __init__(self, camera_id=0, dt=0.05, namespace=""):
+    def __init__(self, host=None, port=9090, camera_id=0, dt=0.05, namespace=""):
         self.dt = dt
         self.v_odom = 0.0
         self.w_odom = 0.0
         self.ranges = np.ones(360, dtype=float) * 5.0
         self.ros_frame = None
         self.lock = threading.Lock()
+        self.backend = None
+        self.bridge = None
+        self.cap = None
         self.ros_version = None
 
         prefix = f"/{namespace.strip('/')}" if namespace else ""
@@ -21,13 +28,36 @@ class TurtleBotReal:
         scan_topic = f"{prefix}/scan"
         odom_topic = f"{prefix}/odom"
 
-        self.cap = None
+        # 1. Connect via rosbridge_api if host provided
+        if host:
+            try:
+                from rosbridge_api import RosbridgeRobot
+                import roslibpy
 
-        # 1. Connect via ROS 2 (rclpy) or ROS 1 (rospy)
+                self.bridge = RosbridgeRobot(host, port=port)
+                self.bridge.setup()
+                self.backend = "rosbridge"
+
+                def _on_odom(msg):
+                    try:
+                        self.v_odom = float(msg["twist"]["twist"]["linear"]["x"])
+                        self.w_odom = float(msg["twist"]["twist"]["angular"]["z"])
+                    except Exception:
+                        pass
+
+                self.odom_sub = roslibpy.Topic(self.bridge._client, odom_topic, "nav_msgs/msg/Odometry")
+                self.odom_sub.subscribe(_on_odom)
+                print(f"[HW] Connected to TurtleBot via rosbridge WebSocket at {host}:{port}.")
+                time.sleep(0.5)
+                return
+            except Exception as e:
+                print(f"[HW] rosbridge connection to {host}:{port} failed ({e}). Checking onboard ROS...")
+
+        # 2. Connect via ROS 2 (rclpy) or ROS 1 (rospy)
         try:
             import rclpy
             from rclpy.node import Node
-            from rclpy.qos import qos_profile_sensor_data, QoSProfile, ReliabilityPolicy, HistoryPolicy
+            from rclpy.qos import qos_profile_sensor_data
             from geometry_msgs.msg import Twist
             from nav_msgs.msg import Odometry
             from sensor_msgs.msg import LaserScan
@@ -40,7 +70,6 @@ class TurtleBotReal:
             self.node.create_subscription(LaserScan, scan_topic, self._ros2_scan_cb, qos_profile_sensor_data)
             self.node.create_subscription(Odometry, odom_topic, self._ros2_odom_cb, qos_profile_sensor_data)
 
-            # Camera subscriptions: Best-effort accepts both Best Effort and Reliable publishers
             try:
                 from sensor_msgs.msg import CompressedImage
                 self.node.create_subscription(CompressedImage, "/camera/image_raw/compressed", self._ros2_compressed_img_cb, qos_profile_sensor_data)
@@ -54,7 +83,6 @@ class TurtleBotReal:
             except Exception:
                 pass
 
-            # Controlled executor prevents shutdown core dumps
             self.executor = rclpy.executors.SingleThreadedExecutor()
             self.executor.add_node(self.node)
             self.spin_thread = threading.Thread(target=self.executor.spin, daemon=True)
@@ -84,7 +112,6 @@ class TurtleBotReal:
                     self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
                     print(f"[HW] Local camera index {camera_id} opened.")
 
-        # Allow initial sensor messages to arrive
         time.sleep(0.5)
 
     def _ros2_scan_cb(self, msg):
@@ -95,18 +122,13 @@ class TurtleBotReal:
 
     def _process_scan(self, raw_ranges, angle_min):
         arr = np.array(raw_ranges, dtype=float)
-        # Clean invalid measurements (inf, nan, <=0.05m noise) -> 5.0m max
         arr[~np.isfinite(arr)] = 5.0
         arr[arr < 0.05] = 5.0
 
-        # Resample to exactly 360 beams if needed
         if len(arr) != 360:
             indices = np.linspace(0, len(arr) - 1, 360).astype(int)
             arr = arr[indices]
 
-        # In TurtleBotSim, index 0 is -pi (rear) and 180 is 0 (front).
-        # LDS-01 standard scan starts at 0 (front) if angle_min == 0.
-        # np.roll shifts front (index 0) to index 180 to match simulation coordinate conventions.
         if abs(angle_min) < 0.1:
             arr = np.roll(arr, 180)
 
@@ -139,7 +161,9 @@ class TurtleBotReal:
                 self.ros_frame = frame
 
     def set_velocity(self, v, omega):
-        if self.ros_version == "ros2":
+        if self.backend == "rosbridge" and self.bridge is not None:
+            self.bridge.send_command(linear=float(v), angular=float(omega))
+        elif self.ros_version == "ros2":
             from geometry_msgs.msg import Twist
             msg = Twist()
             msg.linear.x = float(v)
@@ -156,10 +180,21 @@ class TurtleBotReal:
         return self.v_odom, self.w_odom
 
     def get_lidar_scan(self):
+        if self.backend == "rosbridge" and self.bridge is not None:
+            scan = self.bridge.query_laser_scan(timeout=0)
+            if scan is not None:
+                self._process_scan(scan.ranges, scan.angle_min)
+            with self.lock:
+                return self.ranges.copy()
         with self.lock:
             return self.ranges.copy()
 
     def get_camera_frame(self):
+        if self.backend == "rosbridge" and self.bridge is not None:
+            frame_bgr = self.bridge.query_image(timeout=0)
+            if frame_bgr is not None:
+                return cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2RGB)
+            return None
         with self.lock:
             if self.ros_frame is not None:
                 return self.ros_frame.copy()
@@ -174,6 +209,12 @@ class TurtleBotReal:
             self.set_velocity(0.0, 0.0)
         except Exception:
             pass
+        if self.backend == "rosbridge" and self.bridge is not None:
+            try:
+                self.bridge.stop()
+                self.bridge.cleanup()
+            except Exception:
+                pass
         if hasattr(self, 'cap') and self.cap is not None and self.cap.isOpened():
             self.cap.release()
         if self.ros_version == "ros2":

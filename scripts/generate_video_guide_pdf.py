@@ -156,6 +156,40 @@ def build_pdf(output_path: str):
         spaceAfter=8
     )
 
+    # Table styles
+    tbl_hdr_style = ParagraphStyle(
+        "TableHdr",
+        parent=styles["Normal"],
+        fontName="Helvetica-Bold",
+        fontSize=7.5,
+        leading=9.5,
+        textColor=colors.white,
+    )
+    tbl_cell_style = ParagraphStyle(
+        "TableCell",
+        parent=styles["Normal"],
+        fontName="Helvetica",
+        fontSize=7.5,
+        leading=9.5,
+        textColor=colors.HexColor("#243b53"),
+    )
+    tbl_cell_bold_style = ParagraphStyle(
+        "TableCellBold",
+        parent=styles["Normal"],
+        fontName="Helvetica-Bold",
+        fontSize=7.5,
+        leading=9.5,
+        textColor=colors.HexColor("#102a43"),
+    )
+    tbl_code_style = ParagraphStyle(
+        "TableCode",
+        parent=styles["Normal"],
+        fontName="Courier",
+        fontSize=6.5,
+        leading=8.5,
+        textColor=colors.HexColor("#0f2a4a"),
+    )
+
     story = []
 
     # Title Banner
@@ -189,8 +223,7 @@ def build_pdf(output_path: str):
     story.append(Paragraph("1. Master Video Assets & Location Directory", h1_style))
     story.append(Paragraph("Collect these files from Google Drive and the repository before starting your editing timeline:", body_style))
 
-    asset_data = [
-        ["Asset Name", "Location", "Resolution / Format", "Role in Final 5-Minute Video"],
+    asset_raw = [
         ["real_mission_camera_pov.mp4", "Google Drive / Repo", "640x480 @ 20 FPS (45s)", "Onboard camera HUD with green ArUco box & telemetry"],
         ["track_01_exterior.mp4", "Google Drive", "1080p / 4K Phone Video", "Exterior wide shot of TurtleBot navigating Track 1"],
         ["track_02_exterior.mp4", "Google Drive", "1080p / 4K Phone Video", "Exterior shot of Track 2 proving altered obstacle robustness"],
@@ -203,20 +236,48 @@ def build_pdf(output_path: str):
         ["jonas_voiceover.m4a", "Google Drive", "Clean Vocal Audio", "Speaker 2 voice track covering Segment 2 (1:30 - 3:00)"],
         ["lachlan_voiceover.m4a", "Record locally", "Clean Vocal Audio", "Speaker 3 voice track covering Segment 3 (3:00 - 4:55)"]
     ]
-    t_asset = Table(asset_data, colWidths=[120, 95, 105, 184])
+
+    asset_data = [
+        [
+            Paragraph("Asset Name", tbl_hdr_style),
+            Paragraph("Location", tbl_hdr_style),
+            Paragraph("Resolution / Format", tbl_hdr_style),
+            Paragraph("Role in Final 5-Minute Video", tbl_hdr_style),
+        ]
+    ]
+    for fn, loc, fmt, role in asset_raw:
+        display_fn = fn
+        if fn == "part_e_sim_vs_real_comparison.png":
+            display_fn = "part_e_sim_vs_<br/>real_comparison.png"
+        elif fn == "real_mission_camera_pov.mp4":
+            display_fn = "real_mission_<br/>camera_pov.mp4"
+        elif fn == "terminal_screen_record.mp4":
+            display_fn = "terminal_screen_<br/>record.mp4"
+        elif fn == "part_e_robustness_trials.png":
+            display_fn = "part_e_robustness_<br/>trials.png"
+        elif fn == "part_c_ekf_performance.png":
+            display_fn = "part_c_ekf_<br/>performance.png"
+
+        asset_data.append([
+            Paragraph(f"<font face='Courier' size='6.5'>{display_fn}</font>", tbl_code_style),
+            Paragraph(loc, tbl_cell_style),
+            Paragraph(fmt, tbl_cell_style),
+            Paragraph(role, tbl_cell_style),
+        ])
+
+    t_asset = Table(asset_data, colWidths=[120, 85, 95, 204])
     t_asset.setStyle(TableStyle([
         ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor("#0f2a4a")),
-        ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
-        ('FONTNAME', (0, 0), (-1, 0), "Helvetica-Bold"),
-        ('FONTSIZE', (0, 0), (-1, -1), 7.5),
-        ('LEADING', (0, 0), (-1, -1), 10),
         ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor("#d2d6dc")),
         ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor("#f8fafc")]),
-        ('TOPPADDING', (0, 0), (-1, -1), 4),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+        ('TOPPADDING', (0, 0), (-1, -1), 3),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
+        ('LEFTPADDING', (0, 0), (-1, -1), 4),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 4),
+        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
     ]))
     story.append(t_asset)
-    story.append(Spacer(1, 12))
+    story.append(Spacer(1, 10))
 
     # Section 2: Visual Layout Instructions
     story.append(Paragraph("2. Screen Layout for Hardware Demonstration (Picture-in-Picture)", h1_style))
@@ -225,29 +286,100 @@ def build_pdf(output_path: str):
         body_style
     ))
 
-    layout_data = [
-        ["Screen Area", "Clip Source", "Visual Details to Highlight"],
+    layout_raw = [
         ["Left 60% (Main View)", "Phone Exterior Recording", "Full arena view (4.0m x 2.0m). Shows TurtleBot navigating smoothly past obstacles."],
         ["Top Right 40% (Inset 1)", "real_mission_camera_pov.mp4", "Robot POV. Features green ArUco bounding box, range r, bearing phi, and [DOCKED] banner."],
         ["Bottom Right 40% (Inset 2)", "Terminal Screen Recording", "Live terminal scrolling at 20 Hz. Displays EKF estimates [x, y, theta] and LiDAR clearance."]
     ]
-    t_layout = Table(layout_data, colWidths=[120, 134, 250])
+
+    layout_data = [
+        [
+            Paragraph("Screen Area", tbl_hdr_style),
+            Paragraph("Clip Source", tbl_hdr_style),
+            Paragraph("Visual Details to Highlight", tbl_hdr_style),
+        ]
+    ]
+    for area, src, details in layout_raw:
+        src_p = Paragraph(f"<font face='Courier' size='6.5'>{src}</font>", tbl_code_style) if "." in src else Paragraph(src, tbl_cell_style)
+        layout_data.append([
+            Paragraph(area, tbl_cell_bold_style),
+            src_p,
+            Paragraph(details, tbl_cell_style),
+        ])
+
+    t_layout = Table(layout_data, colWidths=[110, 134, 260])
     t_layout.setStyle(TableStyle([
         ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor("#334e68")),
-        ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
-        ('FONTNAME', (0, 0), (-1, 0), "Helvetica-Bold"),
-        ('FONTSIZE', (0, 0), (-1, -1), 8),
-        ('LEADING', (0, 0), (-1, -1), 11),
         ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor("#d2d6dc")),
         ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor("#f8fafc")]),
-        ('TOPPADDING', (0, 0), (-1, -1), 4),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+        ('TOPPADDING', (0, 0), (-1, -1), 3),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
+        ('LEFTPADDING', (0, 0), (-1, -1), 4),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 4),
+        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
     ]))
     story.append(t_layout)
-    story.append(Spacer(1, 14))
 
-    # Section 3: Simulation Recording Commands
-    story.append(Paragraph("3. How to Record Fresh Simulation Footage (If Needed)", h1_style))
+    story.append(PageBreak())
+
+    # Section 3: Full Word-for-Word Narration Script (Part 1: Rowan & Jonas)
+    story.append(Paragraph("3. Word-for-Word Spoken Narration Script", title_style))
+    story.append(Paragraph("Divided across Rowan, Jonas, and Lachlan. Record audio in a quiet space using phone Voice Memos at ~130 words/min.", subtitle_style))
+    story.append(HRFlowable(width="100%", thickness=1, color=colors.HexColor("#0f2a4a"), spaceAfter=10))
+
+    # Speaker 1: Rowan
+    story.append(Paragraph("SPEAKER 1: ROWAN (0:00 - 1:30 | 90 Seconds | 185 Words)", script_meta_style))
+    story.append(Paragraph("Visuals: Architecture diagram, state equations, coordinate frame transformation chain, split MuJoCo and real arena view.", script_visual_style))
+    story.append(Paragraph(
+        "\"Welcome to our 41014 Integrated Project demonstration for Track A: Autonomous Mobile Robot Navigation and Visual Docking. "
+        "Our team consists of Jonas, Lachlan, and Rowan. Our platform is a TurtleBot3 operating under unicycle kinematics, governed by state vector x, y, and theta, with forward velocity v and angular velocity omega as control inputs.<br/><br/>"
+        "In our model analysis script, we evaluate the Lie algebra rank condition using the platform vector fields and their Lie bracket. "
+        "The distribution determinant equals one across all orientations, proving small-time local controllability. "
+        "For sensing, we map monocular camera pixels through intrinsic parameters into the camera frame, transform to the robot body frame, and project into the world frame.<br/><br/>"
+        "We also evaluate the system observability matrix. Global pose is unobservable from wheel odometry alone due to dead-reckoning drift. "
+        "Once the monocular camera detects the ArUco marker, the measurement Jacobian restores full rank-three observability. "
+        "Crucially, our controller acts strictly on estimated states from the filter and never reads ground truth coordinates.\"",
+        script_dialogue_style
+    ))
+    story.append(Spacer(1, 6))
+
+    # Speaker 2: Jonas
+    story.append(Paragraph("SPEAKER 2: JONAS (1:30 - 3:00 | 90 Seconds | 195 Words)", script_meta_style))
+    story.append(Paragraph("Visuals: MuJoCo 3D simulation running, results/part_c_ekf_performance.png, results/part_e_robustness_trials.png.", script_visual_style))
+    story.append(Paragraph(
+        "\"Here is our baseline simulation running in MuJoCo. The robot starts from a randomized pose, scans the environment with a 2D LiDAR, and detects the central obstacle. "
+        "To estimate state under sensor noise, we implemented an Extended Kalman Filter fusing wheel encoder odometry with camera range and bearing observations.<br/><br/>"
+        "We tuned the process noise covariance matrix Q to reflect unmodelled wheel slip on floor surfaces over our 50-millisecond sample time, and measurement noise matrix R to match camera corner quantization. "
+        "As seen in our EKF performance plot, position uncertainty bounds widen steadily while the robot bypasses the obstacle under dead reckoning.<br/><br/>"
+        "At ten seconds, the camera sights ArUco Marker 0. The innovation covariance yields an immediate contraction in the filter covariance, pulling position error down to under three centimetres. "
+        "Across our ten-trial Monte Carlo robustness benchmark with randomized starting locations, our state-feedback pipeline achieved a one hundred percent docking rate, with a mean final position error of only 3.8 centimetres and heading alignment within 1.2 degrees.\"",
+        script_dialogue_style
+    ))
+
+    story.append(PageBreak())
+
+    # Speaker 3: Lachlan
+    story.append(Paragraph("SPEAKER 3: LACHLAN (3:00 - 4:55 | 115 Seconds | 245 Words)", script_meta_style))
+    story.append(Paragraph("Visuals: Split screen Track 1 and Track 2 exterior + real_mission_camera_pov.mp4 HUD + results/part_e_sim_vs_real_comparison.png.", script_visual_style))
+    story.append(Paragraph(
+        "\"To satisfy the High Distinction requirements, we deployed our complete software pipeline onto the physical TurtleBot3 in the UTS robotics laboratory using rosbridge WebSocket. "
+        "Here is Track 1 on the 4.0-metre by 2.0-metre arena. On the right, the camera HUD displays our live ArUco detection box, distance r, and bearing phi.<br/><br/>"
+        "Our LiDAR processor monitors a 100-degree frontal cone. When obstacles approach within 55 centimetres, the robot executes a reactive bypass. "
+        "If an obstacle enters within 32 centimetres, the controller commands an emergency zero-velocity brake, rotating in place until the path clears. "
+        "Once the marker locks, the controller transitions to Position-Based Visual Servoing and terminal corridor line-tracking, docking within three centimetres of the plate. "
+        "Here is Track 2 with an altered starting condition and obstacle layout, confirming reliable docking.<br/><br/>"
+        "In our quantitative comparison plot, Panel 1 shows that physical hardware trajectories match simulation topology closely. "
+        "Panel 2 confirms that real-world 2-sigma uncertainty contracts upon visual acquisition identically to simulation.<br/><br/>"
+        "During hardware deployment, we diagnosed two real-world issues. First, Wi-Fi transport latency caused steering oscillations under our initial visual servoing gain. "
+        "We damped the gain to 0.65 and added an acceleration slew limiter to eliminate hunting. "
+        "Second, we resolved the close-range waypoint singularity using terminal corridor tracking. "
+        "Our pipeline proves robust, observable, and fully closed-loop docking across both simulation and real hardware. Thank you.\"",
+        script_dialogue_style
+    ))
+    story.append(Spacer(1, 10))
+
+    # Section 4: Simulation Recording Commands
+    story.append(Paragraph("4. How to Record Fresh Simulation Footage (If Needed)", h1_style))
     story.append(Paragraph(
         "If you want to record the MuJoCo simulation window yourself, run these commands from the repository root:",
         body_style
@@ -277,68 +409,11 @@ def build_pdf(output_path: str):
 
     story.append(PageBreak())
 
-    # Section 4: Full Word-for-Word Narration Script
-    story.append(Paragraph("4. Word-for-Word Spoken Narration Script", title_style))
-    story.append(Paragraph("Divided across Rowan, Jonas, and Lachlan. Record audio in a quiet space using phone Voice Memos at ~130 words/min.", subtitle_style))
-    story.append(HRFlowable(width="100%", thickness=1, color=colors.HexColor("#0f2a4a"), spaceAfter=10))
-
-    # Speaker 1: Rowan
-    story.append(Paragraph("SPEAKER 1: ROWAN (0:00 - 1:30 | 90 Seconds | 185 Words)", script_meta_style))
-    story.append(Paragraph("Visuals: Architecture diagram, state equations, coordinate frame transformation chain, split MuJoCo and real arena view.", script_visual_style))
-    story.append(Paragraph(
-        "\"Welcome to our 41014 Integrated Project demonstration for Track A: Autonomous Mobile Robot Navigation and Visual Docking. "
-        "Our team consists of Jonas, Lachlan, and Rowan. Our platform is a TurtleBot3 operating under unicycle kinematics, governed by state vector x, y, and theta, with forward velocity v and angular velocity omega as control inputs.<br/><br/>"
-        "In our model analysis script, we evaluate the Lie algebra rank condition using the platform vector fields and their Lie bracket. "
-        "The distribution determinant equals one across all orientations, proving small-time local controllability. "
-        "For sensing, we map monocular camera pixels through intrinsic parameters into the camera frame, transform to the robot body frame, and project into the world frame.<br/><br/>"
-        "We also evaluate the system observability matrix. Global pose is unobservable from wheel odometry alone due to dead-reckoning drift. "
-        "Once the monocular camera detects the ArUco marker, the measurement Jacobian restores full rank-three observability. "
-        "Crucially, our controller acts strictly on estimated states from the filter and never reads ground truth coordinates.\"",
-        script_dialogue_style
-    ))
-    story.append(Spacer(1, 4))
-
-    # Speaker 2: Jonas
-    story.append(Paragraph("SPEAKER 2: JONAS (1:30 - 3:00 | 90 Seconds | 195 Words)", script_meta_style))
-    story.append(Paragraph("Visuals: MuJoCo 3D simulation running, results/part_c_ekf_performance.png, results/part_e_robustness_trials.png.", script_visual_style))
-    story.append(Paragraph(
-        "\"Here is our baseline simulation running in MuJoCo. The robot starts from a randomized pose, scans the environment with a 2D LiDAR, and detects the central obstacle. "
-        "To estimate state under sensor noise, we implemented an Extended Kalman Filter fusing wheel encoder odometry with camera range and bearing observations.<br/><br/>"
-        "We tuned the process noise covariance matrix Q to reflect unmodelled wheel slip on floor surfaces over our 50-millisecond sample time, and measurement noise matrix R to match camera corner quantization. "
-        "As seen in our EKF performance plot, position uncertainty bounds widen steadily while the robot bypasses the obstacle under dead reckoning.<br/><br/>"
-        "At ten seconds, the camera sights ArUco Marker 0. The innovation covariance yields an immediate contraction in the filter covariance, pulling position error down to under three centimetres. "
-        "Across our ten-trial Monte Carlo robustness benchmark with randomized starting locations, our state-feedback pipeline achieved a one hundred percent docking rate, with a mean final position error of only 3.8 centimetres and heading alignment within 1.2 degrees.\"",
-        script_dialogue_style
-    ))
-    story.append(Spacer(1, 4))
-
-    # Speaker 3: Lachlan
-    story.append(Paragraph("SPEAKER 3: LACHLAN (3:00 - 4:55 | 115 Seconds | 245 Words)", script_meta_style))
-    story.append(Paragraph("Visuals: Split screen Track 1 and Track 2 exterior + real_mission_camera_pov.mp4 HUD + results/part_e_sim_vs_real_comparison.png.", script_visual_style))
-    story.append(Paragraph(
-        "\"To satisfy the High Distinction requirements, we deployed our complete software pipeline onto the physical TurtleBot3 in the UTS robotics laboratory using rosbridge WebSocket. "
-        "Here is Track 1 on the 4.0-metre by 2.0-metre arena. On the right, the camera HUD displays our live ArUco detection box, distance r, and bearing phi.<br/><br/>"
-        "Our LiDAR processor monitors a 100-degree frontal cone. When obstacles approach within 55 centimetres, the robot executes a reactive bypass. "
-        "If an obstacle enters within 32 centimetres, the controller commands an emergency zero-velocity brake, rotating in place until the path clears. "
-        "Once the marker locks, the controller transitions to Position-Based Visual Servoing and terminal corridor line-tracking, docking within three centimetres of the plate. "
-        "Here is Track 2 with an altered starting condition and obstacle layout, confirming reliable docking.<br/><br/>"
-        "In our quantitative comparison plot, Panel 1 shows that physical hardware trajectories match simulation topology closely. "
-        "Panel 2 confirms that real-world 2-sigma uncertainty contracts upon visual acquisition identically to simulation.<br/><br/>"
-        "During hardware deployment, we diagnosed two real-world issues. First, Wi-Fi transport latency caused steering oscillations under our initial visual servoing gain. "
-        "We damped the gain to 0.65 and added an acceleration slew limiter to eliminate hunting. "
-        "Second, we resolved the close-range waypoint singularity using terminal corridor tracking. "
-        "Our pipeline proves robust, observable, and fully closed-loop docking across both simulation and real hardware. Thank you.\"",
-        script_dialogue_style
-    ))
-
-    story.append(PageBreak())
-
     # Section 5: Pre-Export QC Checklist
     story.append(Paragraph("5. Final Video Quality Control & Submission Checklist", h1_style))
     story.append(Paragraph("Run through this checklist before uploading the MP4 to YouTube and Canvas:", body_style))
 
-    qc_data = [
-        ["Check Item", "Target Standard", "Why It Affects Your Grade"],
+    qc_raw = [
         ["Total Duration", "Strictly 4:50 to 4:55 (Under 5:00)", "Rubric Rule: Content past 5:00 is ignored. If video is 5:05, you lose the conclusion."],
         ["Audio Balancing", "Normalize all 3 voices to -14 LUFS", "Rowan, Jonas, and Lachlan must have matched volume without background hum or clipping."],
         ["Resolution", "1080p (1920x1080) @ 30 or 60 FPS", "Ensures text overlays, terminal output, and plot axes remain sharp and readable."],
@@ -346,20 +421,34 @@ def build_pdf(output_path: str):
         ["YouTube Visibility", "Set to 'Unlisted' (NOT Private)", "If set to Private, markers cannot open the link and will assign zero for video."],
         ["Title Card Info", "Group Number, Member Names & IDs", "Must appear in the first 5 seconds or final 5 seconds to match Canvas submission."]
     ]
-    t_qc = Table(qc_data, colWidths=[110, 150, 244])
+
+    qc_data = [
+        [
+            Paragraph("Check Item", tbl_hdr_style),
+            Paragraph("Target Standard", tbl_hdr_style),
+            Paragraph("Why It Affects Your Grade", tbl_hdr_style),
+        ]
+    ]
+    for item, std, why in qc_raw:
+        qc_data.append([
+            Paragraph(item, tbl_cell_bold_style),
+            Paragraph(std, tbl_cell_style),
+            Paragraph(why, tbl_cell_style),
+        ])
+
+    t_qc = Table(qc_data, colWidths=[95, 145, 264])
     t_qc.setStyle(TableStyle([
         ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor("#0f2a4a")),
-        ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
-        ('FONTNAME', (0, 0), (-1, 0), "Helvetica-Bold"),
-        ('FONTSIZE', (0, 0), (-1, -1), 8),
-        ('LEADING', (0, 0), (-1, -1), 11),
         ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor("#d2d6dc")),
         ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor("#f8fafc")]),
-        ('TOPPADDING', (0, 0), (-1, -1), 5),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
+        ('TOPPADDING', (0, 0), (-1, -1), 3),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
+        ('LEFTPADDING', (0, 0), (-1, -1), 4),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 4),
+        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
     ]))
     story.append(t_qc)
-    story.append(Spacer(1, 16))
+    story.append(Spacer(1, 14))
 
     # Project metadata summary
     meta_p = Paragraph(

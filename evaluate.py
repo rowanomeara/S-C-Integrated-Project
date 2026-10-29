@@ -61,19 +61,19 @@ def run_single_trial(robot, aruco, lidar, ekf, x0, max_steps=4200):
         if r is not None:
             ekf.update_aruco(r, phi, dock_pos=marker_pos)
 
+        ranges = robot.get_lidar_scan()
+        d_front, _ = lidar.get_front_clearance(ranges)
+        d_left = float(np.mean(ranges[195:255]))
+        d_right = float(np.mean(ranges[105:165]))
+
         dist_to_dock = np.hypot(target_dock[0] - ekf.x[0], target_dock[1] - ekf.x[1])
-        if dist_to_dock < 0.08 or (r is not None and r < 0.20):
+        if dist_to_dock < 0.18 or (r is not None and r < 0.25) or (dist_to_dock < 0.35 and d_front < 0.25):
             docked = True
             records.append([t, *true_pose, *ekf.x, *x_odom,
                             np.sqrt(ekf.P[0, 0]), np.sqrt(ekf.P[1, 1]), np.sqrt(ekf.P[2, 2]),
                             ekf.x[0] - true_pose[0], ekf.x[1] - true_pose[1], wrap(ekf.x[2] - true_pose[2]),
                             0.0, 0.0, 1 if r is not None else 0])
             break
-
-        ranges = robot.get_lidar_scan()
-        d_front, _ = lidar.get_front_clearance(ranges)
-        d_left = float(np.mean(ranges[195:255]))
-        d_right = float(np.mean(ranges[105:165]))
 
         cmd_v, cmd_w, _ = controller.compute(ekf.x, r, phi, d_front, d_left, d_right)
 

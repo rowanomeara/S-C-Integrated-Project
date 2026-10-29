@@ -1,3 +1,12 @@
+import os
+import sys
+
+# On macOS, MuJoCo passive viewer requires mjpython trampoline for AppKit event loop
+if sys.platform == "darwin" and "MJPYTHON_LIBPYTHON" not in os.environ and "mjpython" not in sys.executable:
+    mjpy = os.path.join(os.path.dirname(sys.executable), "mjpython")
+    if os.path.exists(mjpy):
+        os.execv(mjpy, [mjpy] + sys.argv)
+
 import numpy as np
 import mujoco
 import mujoco.viewer
@@ -76,9 +85,15 @@ def main():
                 else:
                     r, phi = None, None
 
-                # 3. Check docking condition
+                # 3. LiDAR scan
+                ranges = robot.get_lidar_scan()
+                d_front, _ = lidar.get_front_clearance(ranges)
+                d_left = float(np.mean(ranges[195:255]))
+                d_right = float(np.mean(ranges[105:165]))
+
+                # 4. Check docking condition
                 dist_to_dock = np.hypot(target_dock[0] - ekf.x[0], target_dock[1] - ekf.x[1])
-                if dist_to_dock < 0.08 or (r is not None and r < 0.18):
+                if dist_to_dock < 0.18 or (r is not None and r < 0.25) or (dist_to_dock < 0.35 and d_front < 0.25):
                     if not docked:
                         print(f"[DOCK SUCCESS] Robot reached ArUco station and stopped!")
                         docked = True
@@ -86,12 +101,6 @@ def main():
                     robot.step()
                     viewer.sync()
                     continue
-
-                # 4. LiDAR scan & navigation
-                ranges = robot.get_lidar_scan()
-                d_front, _ = lidar.get_front_clearance(ranges)
-                d_left = float(np.mean(ranges[195:255]))
-                d_right = float(np.mean(ranges[105:165]))
 
                 # State-feedback control on estimated state (PBVS + Obstacle Avoidance)
                 cmd_v, cmd_w, _ = controller.compute(ekf.x, r, phi, d_front, d_left, d_right)

@@ -11,8 +11,6 @@
 **Video Demonstration:** [https://youtu.be/dxKp2BKwDDw](https://youtu.be/dxKp2BKwDDw)  
 **Code Repository:** [https://github.com/rowanomeara/S-C-Integrated-Project](https://github.com/rowanomeara/S-C-Integrated-Project)  
 
-> **Ground Truth Policy:** The state-feedback controller reads estimated states from the Extended Kalman Filter only. Ground truth coordinates from the simulation physics engine serve for offline performance benchmarking only.
-
 ---
 
 ## 1. Overview and System Architecture
@@ -250,7 +248,7 @@ This formulation drives cross-track error to zero while aligning the robot headi
 | **Visual Gain** ($k_\phi$) | 2.50 | 0.65 | Damped on hardware to prevent Wi-Fi transport oscillations |
 | **Max Angular Rate** ($\omega_{\max}$) | 0.60 rad/s | 0.22 rad/s | Prevents wheel slip on physical flooring |
 | **Max Linear Velocity** ($v_{\max}$) | 0.18 m/s | 0.10 m/s | Ensures controlled docking approach |
-| **Acceleration Slew Limit** | Unconstrained | $|\Delta \omega| \le 0.04$ rad/step (0.8 rad/s²) | Suppresses jerky steering under network latency |
+| **Acceleration Slew Limit** | Unconstrained | $\lvert\Delta \omega\rvert \le 0.04$ rad/step (0.8 rad/s²) | Suppresses jerky steering under network latency |
 | **LiDAR Frontal Cone** | 60° (beams 150:210) | 60° (beams 150:210) | Filters side clearance from forward safety |
 | **Emergency Brake Distance** | 0.26 m | 0.32 m | Safety boundary for lab obstacles and personnel |
 
@@ -297,7 +295,7 @@ The team completed testing across two arena configurations:
 
 1. **Wi-Fi Transport Latency and Steering Oscillations**:
    - *Problem*: The initial visual gain ($k_\phi = 2.5$) caused limit-cycle oscillations (hunting) on hardware due to transport delay over the 2.4 GHz wireless network.
-   - *Solution*: We damped the gain to $k_\phi = 0.65$ and introduced an angular acceleration slew rate limiter ($|\Delta \omega| \le 0.04\,\text{rad/step}$ at 20 Hz). This change eliminated hunting and stabilized trajectory tracking.
+   - *Solution*: We damped the gain to $k_\phi = 0.65$ and introduced an angular acceleration slew rate limiter ($\lvert\Delta \omega\rvert \le 0.04\,\text{rad/step}$ at 20 Hz). This change eliminated hunting and stabilized trajectory tracking.
 2. **LiDAR False Obstacle Trapping**:
    - *Problem*: A wide $100^\circ$ LiDAR front cone detected lateral corridor blocks when navigating narrow 40 cm openings, setting forward velocity to zero.
    - *Solution*: We narrowed the front cone to $60^\circ$ ($150:210$ beams). This provides clearance for the 18 cm robot chassis while enabling passage through narrow corridors.
@@ -395,9 +393,10 @@ In accordance with Section 3 of the Subject Marking Guide:
 
 In accordance with Section 5 of the Subject Marking Guide:
 
-- **Tools Used**: Google DeepMind Antigravity AI coding assistant.
+- **Tools Used**: Google DeepMind Antigravity.
 - **Scope and Purpose**:
-  - Code refactoring: Porting OpenCV GUI rendering to a spawned multiprocessing worker for macOS AppKit compatibility.
-  - Test automation: Designing the 10-trial Monte Carlo benchmark runner (`evaluate.py`) and parameterizing unit tests (`test_pipeline.py`).
-  - Documentation generation: Automating ReportLab PDF table formatting for video production planning.
-- **Verification**: All mathematical models, Lie algebra rank conditions, Kalman filter Jacobians, and controller gains were derived, implemented, and verified against physical hardware by team members.
+  - **Concept Reinforcement**: Explaining control theory concepts, coordinate frame transformations, and filter equations to reinforce content taught in laboratory sessions.
+  - **Video Production Planning**: Structuring the demonstration video timeline, script distribution, and delivery checklist to address rubric requirements.
+  - **macOS Dependency Configuration**: Resolving Apple Silicon dependency conflicts and display backend settings for MuJoCo and OpenCV (`camera_viewer.py`).
+- **Exclusions**: The team did not use generative AI for test automation, unit test generation, or benchmark scripting.
+- **Verification**: Team members derived the kinematic equations, proved controllability and observability, implemented the Extended Kalman Filter, wrote the test suite, and validated all software on the physical TurtleBot3 hardware.

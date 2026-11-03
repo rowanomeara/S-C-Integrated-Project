@@ -4,9 +4,9 @@
 **Institution:** University of Technology Sydney  
 **Group:** [Insert Group Number]  
 **Team Members:**  
-- Rowan O'Meara (Student ID: [Insert ID])  
-- Jonas (Student ID: [Insert ID])  
-- Lachlan (Student ID: [Insert ID])  
+- Rowan O'Meara (Student ID: 25797046)  
+- Jonas (Student ID: 25862778)  
+- Lachlan (Student ID: 25320060)  
 
 **Video Demonstration:** [https://youtu.be/dxKp2BKwDDw](https://youtu.be/dxKp2BKwDDw)  
 **Code Repository:** [https://github.com/rowanomeara/S-C-Integrated-Project](https://github.com/rowanomeara/S-C-Integrated-Project)  
@@ -383,9 +383,9 @@ In accordance with Section 3 of the Subject Marking Guide:
 
 | Member | Student ID | Core Contributions | Viva Voce Focus |
 | :--- | :--- | :--- | :--- |
-| **Rowan O'Meara** | [Insert ID] | EKF formulation, Lie algebra controllability analysis, ROS 2 hardware interface, and real-time controller tuning | Controllability proof, Wi-Fi transport delay damping, Kalman filter innovation math |
-| **Jonas** | [Insert ID] | MuJoCo simulation environment setup, randomized starting spawn generator, and LiDAR obstacle processor | Frontal cone optimization, Monte Carlo trial batch evaluation, dead reckoning drift analysis |
-| **Lachlan** | [Insert ID] | ArUco detection pipeline, pinhole camera intrinsic calibration, video production, and split-screen telemetry demonstration | Camera geometry transformations, visual servoing steering laws, corridor tracking stability |
+| **Rowan O'Meara** | 25797046 | EKF formulation, Lie algebra controllability analysis, ROS 2 hardware interface, and real-time controller tuning | Controllability proof, Wi-Fi transport delay damping, Kalman filter innovation math |
+| **Jonas** | 25862778 | MuJoCo simulation environment setup, randomized starting spawn generator, and LiDAR obstacle processor | Frontal cone optimization, Monte Carlo trial batch evaluation, dead reckoning drift analysis |
+| **Lachlan** | 25320060 | ArUco detection pipeline, pinhole camera intrinsic calibration, video production, and split-screen telemetry demonstration | Camera geometry transformations, visual servoing steering laws, corridor tracking stability |
 
 ---
 

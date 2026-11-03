@@ -1,5 +1,9 @@
+import os
+import sys
 import unittest
 import numpy as np
+
+sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
 
 from src.estimation.ekf import RobotEKF, wrap
 from src.control.docking_controller import DockingController

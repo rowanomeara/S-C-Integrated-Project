@@ -5,9 +5,10 @@ import matplotlib.pyplot as plt
 # Generates quantitative comparison between Simulation and Real TurtleBot3 (HD Rubric)
 
 def main():
-    sim_path = "results/logs/trial_01.csv"
-    real_path = "results/real_docking_log.csv"
-    out_img = "results/part_e_sim_vs_real_comparison.png"
+    repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+    sim_path = os.path.join(repo_root, "results", "logs", "trial_01.csv")
+    real_path = os.path.join(repo_root, "results", "real_docking_log.csv")
+    out_img = os.path.join(repo_root, "results", "part_e_sim_vs_real_comparison.png")
 
     if not os.path.exists(sim_path) or not os.path.exists(real_path):
         print("Missing log files for comparison.")

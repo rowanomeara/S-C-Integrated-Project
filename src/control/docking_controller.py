@@ -1,5 +1,7 @@
 import numpy as np
 
+from src.estimation.ekf import wrap
+
 
 class DockingController:
     """State-feedback docking controller with PBVS visual servoing, corridor tracking, and obstacle avoidance."""
@@ -64,7 +66,7 @@ class DockingController:
         elif dist_to_dock < (0.40 if not is_real else 0.90):
             self.dodge_timer = 0
             # Target heading points straight into dock (theta = pi)
-            th_err = (np.pi - x_est[2] + np.pi) % (2 * np.pi) - np.pi
+            th_err = wrap(np.pi - x_est[2])
             # Cross-track error towards dock centerline (y = target_dock[1])
             y_err = self.target_dock[1] - x_est[1]
             w_limit = 0.22 if is_real else 0.60
@@ -74,7 +76,7 @@ class DockingController:
         # 4. Long-range Navigation towards Dock
         else:
             angle_to_dock = np.arctan2(self.target_dock[1] - x_est[1], self.target_dock[0] - x_est[0])
-            heading_err = (angle_to_dock - x_est[2] + np.pi) % (2 * np.pi) - np.pi
+            heading_err = wrap(angle_to_dock - x_est[2])
             k_turn = 0.80 if is_real else 2.0
             turn_limit = 0.30 if is_real else 0.80
             k_track = 0.60 if is_real else 1.5

@@ -2,7 +2,7 @@
 
 **Track A:** TurtleBot3 Mobile Robot Visual Waypoint Navigation and Docking  
 **Institution:** University of Technology Sydney  
-**Group:** [Insert Group Number]  
+**Group:** 67  
 **Team Members:**  
 - Rowan O'Meara (Student ID: 25797046)  
 - Jonas (Student ID: 25862778)  

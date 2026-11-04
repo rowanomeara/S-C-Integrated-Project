@@ -1,4 +1,12 @@
-"""Visualise the robot's laser scan using rosbridge_api."""
+"""Hardware: Live 2D LiDAR Polar Radar Visualizer.
+
+Streams sensor_msgs/LaserScan from the TurtleBot3 over rosbridge to render
+a real-time top-down polar radar display using OpenCV:
+1. Filters out non-finite (NaN, inf) returns and hardware blind spots.
+2. Projects polar laser coordinates (r, theta) into Cartesian screen pixels.
+3. Renders concentric distance rings (0.25, 0.50, 0.75, 1.00 of display range).
+4. Displays robot origin, heading orientation arrow, and clearance telemetry.
+"""
 
 import argparse
 import math
@@ -10,14 +18,25 @@ from rosbridge_api import LaserScan, RosbridgeRobot
 def render_laser_scan(
     scan: LaserScan, image_size: int = 700, display_range: float | None = None
 ) -> np.ndarray:
-    """Render a top-down laser scan as a BGR OpenCV image."""
+    """Project laser scan points onto a 2D top-down BGR radar canvas.
+
+    Parameters:
+      scan: LaserScan data object containing ranges and beam angles.
+      image_size: Canvas width and height in pixels (default: 700).
+      display_range: Maximum radar distance in meters (default: 3.5 m).
+
+    Returns:
+      np.ndarray: uint8 BGR image canvas.
+    """
     if image_size < 100:
         raise ValueError("image_size must be at least 100 pixels")
 
+    # Filter valid laser returns within sensor range limits
     valid = np.isfinite(scan.ranges)
     valid &= scan.ranges >= scan.range_min
     valid &= scan.ranges <= scan.range_max
 
+    # Set default display range to 3.5 m (LDS-01 operational range)
     if display_range is None:
         display_range = scan.range_max
         if not math.isfinite(display_range) and np.any(valid):
@@ -31,8 +50,9 @@ def render_laser_scan(
 
     canvas = np.zeros((image_size, image_size, 3), dtype=np.uint8)
     centre = image_size // 2
-    scale = (image_size * 0.45) / display_range
+    scale = (image_size * 0.45) / display_range  # Meter to pixel scale factor
 
+    # Draw concentric distance rings (25%, 50%, 75%, 100% of display range)
     for fraction in (0.25, 0.5, 0.75, 1.0):
         radius = round(display_range * fraction * scale)
         cv2.circle(canvas, (centre, centre), radius, (50, 50, 50), 1)
@@ -40,18 +60,25 @@ def render_laser_scan(
     visible = valid & (scan.ranges <= display_range)
     ranges = scan.ranges[visible]
     angles = scan.angles[visible]
-    # ROS: +x is forward and +y is left. Display forward at the top.
+
+    # Polar to Cartesian screen coordinates:
+    # Forward (+x in robot frame) maps toward the top of the canvas (-y in pixel space)
     pixel_x = np.rint(centre - ranges * np.sin(angles) * scale).astype(int)
     pixel_y = np.rint(centre - ranges * np.cos(angles) * scale).astype(int)
+
+    # Discard points outside image boundary
     inside = (
         (pixel_x >= 0)
         & (pixel_x < image_size)
         & (pixel_y >= 0)
         & (pixel_y < image_size)
     )
+    # Paint laser obstacle returns in yellow
     canvas[pixel_y[inside], pixel_x[inside]] = (0, 255, 255)
 
+    # Draw green circle at robot center
     cv2.circle(canvas, (centre, centre), 6, (0, 255, 0), -1)
+    # Draw directional arrow pointing forward
     cv2.arrowedLine(
         canvas,
         (centre, centre),
@@ -60,6 +87,8 @@ def render_laser_scan(
         2,
         tipLength=0.25,
     )
+
+    # Render telemetry HUD text
     min_dist = float(np.min(scan.ranges[valid])) if np.any(valid) else 0.0
     cv2.putText(
         canvas,
@@ -75,6 +104,7 @@ def render_laser_scan(
 
 
 def main() -> None:
+    """Connect to TurtleBot3 laser scan stream and display live radar window."""
     parser = argparse.ArgumentParser(description="Live 2D LiDAR Scan Viewer")
     parser.add_argument("host", nargs="?", default="192.168.1.206", help="Robot IP address (e.g. 192.168.1.209)")
     parser.add_argument("--port", type=int, default=9090)

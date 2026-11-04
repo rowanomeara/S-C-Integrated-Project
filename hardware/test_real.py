@@ -1,3 +1,12 @@
+"""Hardware: Automated Pre-Flight Diagnostic Health Check.
+
+Performs a 4-point pre-flight hardware verification before starting autonomous runs:
+1. Odometry: Queries /odom for non-null velocity telemetry.
+2. LiDAR: Verifies 360-beam return and minimum clearance > 0.05 m.
+3. Camera: Verifies video stream reception and executes ArUco detection.
+4. Actuator: Pulses wheel motors forward at 4 cm/s for 400 ms and halts.
+"""
+
 import os
 import sys
 import time
@@ -12,6 +21,7 @@ from src.perception.aruco_detector import ArucoDetector
 
 
 def test_hardware():
+    """Execute the automated 4-point hardware pre-flight verification routine."""
     host = sys.argv[1] if len(sys.argv) > 1 and not sys.argv[1].isdigit() else "192.168.1.206"
     cam_id = int(sys.argv[1]) if len(sys.argv) > 1 and sys.argv[1].isdigit() else 0
     print(f"\n=======================================================")
@@ -24,14 +34,18 @@ def test_hardware():
         print(f"\n❌ [CRITICAL] Failed to initialize robot HAL: {e}")
         return False
 
-    time.sleep(1.2)  # allow first sensor messages to arrive
+    time.sleep(1.2)  # Allow initial sensor topics to populate
     aruco = ArucoDetector()
 
+    # -------------------------------------------------------------
     # 1. Odometry Check
+    # -------------------------------------------------------------
     v, w = robot.get_odometry()
     print(f" [1/4] Odometry:  v={v:.3f} m/s, w={w:.3f} rad/s -> ✅ PASS")
 
+    # -------------------------------------------------------------
     # 2. LiDAR Check
+    # -------------------------------------------------------------
     scan = robot.get_lidar_scan()
     min_dist = float(scan.min())
     if len(scan) == 360 and min_dist > 0.05:
@@ -39,7 +53,9 @@ def test_hardware():
     else:
         print(f" [2/4] LiDAR:     ⚠️ Warning: min_dist = {min_dist:.2f} m (check cable/clearing)")
 
-    # 3. Camera & ArUco Check (allow up to 2.5s for ROS topic discovery)
+    # -------------------------------------------------------------
+    # 3. Camera & ArUco Check (polls up to 2.5s for ROS topic arrival)
+    # -------------------------------------------------------------
     frame = None
     for _ in range(25):
         frame = robot.get_camera_frame()
@@ -54,7 +70,9 @@ def test_hardware():
     else:
         print(f" [3/4] Camera:    ❌ FAILED (No frame received from /camera/image_raw/compressed or camera index)")
 
-    # 4. Safe Motor Check (pulsing forward 0.04 m/s for 0.4s)
+    # -------------------------------------------------------------
+    # 4. Safe Motor Check (pulse forward 4 cm/s for 400 ms)
+    # -------------------------------------------------------------
     print("\n [4/4] Motor:     Pulsing wheels forward 4 cm/s for 0.4s ... ", end="", flush=True)
     robot.set_velocity(0.04, 0.0)
     time.sleep(0.4)

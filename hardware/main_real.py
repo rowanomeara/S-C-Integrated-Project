@@ -1,3 +1,12 @@
+"""Hardware: Physical Autonomous Docking Mission Runner.
+
+Connects to the TurtleBot3 over rosbridge to execute the closed-loop docking mission:
+1. Performs an automated 4-point pre-flight sensor check.
+2. Runs the 20 Hz estimation, perception, and visual servoing control loop.
+3. Records annotated robot POV video to MP4.
+4. Logs real-time flight telemetry to CSV for simulation vs hardware benchmarking.
+"""
+
 import os
 import sys
 import time
@@ -19,6 +28,7 @@ from src.control import DockingController
 
 
 def main():
+    """Parse CLI arguments, run pre-flight check, and execute physical mission."""
     parser = argparse.ArgumentParser(description="TurtleBot3 Real Hardware Mission Runner")
     parser.add_argument("host", nargs="?", default="192.168.1.206", help="Robot IP address (default: 192.168.1.206)")
     parser.add_argument("--cam", type=int, default=0, help="Camera device index (default: 0)")
@@ -38,7 +48,7 @@ def main():
     lidar = LidarProcessor(danger_distance=0.55)
     ekf = RobotEKF()
 
-    # Initial estimated pose from CLI / default spawn
+    # Set initial estimated pose from arguments
     th0_rad = np.deg2rad(args.th0)
     ekf.x = np.array([args.x0, args.y0, th0_rad], dtype=float)
     ekf.P = np.diag([0.1**2, 0.1**2, np.deg2rad(5)**2])
@@ -46,7 +56,9 @@ def main():
     target_dock = np.array([args.dock_x, args.y0])
     marker_pos = np.array([args.marker_x, args.y0])
 
-    # Automated Pre-Flight Diagnostic Summary
+    # -------------------------------------------------------------
+    # Automated Pre-Flight Diagnostics
+    # -------------------------------------------------------------
     time.sleep(0.5)
     v_chk, w_chk = robot.get_odometry()
     scan_chk = robot.get_lidar_scan()
@@ -67,11 +79,11 @@ def main():
     print(f" [4/4] Corridor:  Spawn [{args.x0:.2f}, {args.y0:.2f}] -> Dock [{target_dock[0]:.2f}, {target_dock[1]:.2f}] (Stop dist: {args.stop_dist}m) -> ✅ READY")
     print("=" * 55 + "\n")
 
-    # Show live camera window if a graphical display is connected
+    # Initialize live camera display if a windowing system is available
     has_display = bool(os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY") or sys.platform == "darwin")
     cam_window = CameraWindow() if has_display else None
 
-    # Automatic MP4 Video Recorder (records robot POV with annotations)
+    # Configure MP4 video writer for logging the robot's visual perspective
     video_writer = None
     if not args.no_video:
         fourcc = cv2.VideoWriter_fourcc(*"mp4v")
@@ -91,11 +103,11 @@ def main():
             step += 1
             t_start = time.time()
 
-            # 1. EKF prediction from real wheel odometry
+            # 1. EKF prediction using physical wheel encoder odometry
             v_odom, w_odom = robot.get_odometry()
             ekf.predict(v_odom, w_odom, dt=robot.dt)
 
-            # 2. Camera POV & ArUco detection
+            # 2. Camera frame acquisition and ArUco detection
             frame = robot.get_camera_frame()
             r, phi = None, None
             if frame is not None:
@@ -109,7 +121,7 @@ def main():
                 if r is not None:
                     ekf.update_aruco(r, phi, dock_pos=marker_pos)
 
-            # 3. Docking terminal condition (glides right up to plate)
+            # 3. Docking completion check: stop when within stop_dist of marker plate
             dist_to_dock = np.hypot(target_dock[0] - ekf.x[0], target_dock[1] - ekf.x[1])
             if dist_to_dock < 0.05 or (r is not None and r <= args.stop_dist):
                 r_str = f"r={r:.2f}m" if r is not None else "dead-reckoning"
@@ -123,7 +135,7 @@ def main():
                         video_writer.write(final_annotated)
                 break
 
-            # 4. LiDAR obstacle processing & State-Feedback Control
+            # 4. LiDAR obstacle processing and multi-mode control computation
             ranges = robot.get_lidar_scan()
             d_front, _ = lidar.get_front_clearance(ranges)
             d_left = float(np.mean(ranges[195:255]))
@@ -131,10 +143,10 @@ def main():
 
             cmd_v, cmd_w, _ = controller.compute(ekf.x, r, phi, d_front, d_left, d_right, is_real=True)
 
-            # Send actuation
+            # Transmit velocity commands to physical motor controllers
             robot.set_velocity(cmd_v, cmd_w)
 
-            # Record telemetry for quantitative comparison against simulation
+            # Log flight telemetry
             flight_log.append([
                 step * robot.dt, ekf.x[0], ekf.x[1], ekf.x[2],
                 np.sqrt(ekf.P[0, 0]), np.sqrt(ekf.P[1, 1]), np.sqrt(ekf.P[2, 2]),
@@ -142,12 +154,12 @@ def main():
                 r if r is not None else -1.0, phi if phi is not None else 0.0
             ])
 
-            # Telemetry logging every 20 steps (1.0 sec)
+            # Print terminal telemetry at 1 Hz
             if step % 20 == 0:
                 status = f"LOCKED r={r:.2f}m" if r is not None else f"SEEKING (front={d_front:.2f}m)"
                 print(f"[{step:04d}] Est: [{ekf.x[0]:.2f}, {ekf.x[1]:.2f}, {np.rad2deg(ekf.x[2]):.0f}°] | Dist: {dist_to_dock:.2f}m | {status}")
 
-            # Enforce 20 Hz rate
+            # Enforce precise 20 Hz loop rate (dt = 0.05 s)
             elapsed = time.time() - t_start
             sleep_time = max(0.0, robot.dt - elapsed)
             time.sleep(sleep_time)

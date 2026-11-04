@@ -1,4 +1,11 @@
-"""Control robot velocity from the keyboard using rosbridge_api."""
+"""Hardware: Manual Keyboard Teleoperation and Emergency Override.
+
+Enables manual keyboard velocity control of the TurtleBot3 over rosbridge:
+- W / S: Drive forward / backward at 0.12 m/s.
+- A / D: Rotate counter-clockwise / clockwise at 0.80 rad/s.
+- Space: Emergency stop (zero all velocities immediately).
+- Esc: Terminate teleoperation session.
+"""
 
 import argparse
 import threading
@@ -7,16 +14,23 @@ from rosbridge_api import RosbridgeRobot
 
 
 def teleop(robot: RosbridgeRobot, publish_rate: float = 10.0) -> None:
-    """Control the robot using W/S/A/D, Space to stop, and Escape to exit."""
+    """Read keyboard events and stream twist velocity commands to the robot.
+
+    Parameters:
+      robot: RosbridgeRobot client instance.
+      publish_rate: Command publication frequency in Hz (default: 10.0 Hz).
+    """
     try:
         from pynput import keyboard
     except ImportError as exc:
         raise RuntimeError('Teleop requires pynput: pip install pynput') from exc
 
+    # Mutex protecting concurrent access to the shared velocity dictionary
     command_lock = threading.Lock()
     command = {"linear": 0.0, "angular": 0.0}
 
     def on_press(key) -> None:
+        """Process key press event and update commanded velocity."""
         should_stop = False
         with command_lock:
             try:
@@ -29,6 +43,7 @@ def teleop(robot: RosbridgeRobot, publish_rate: float = 10.0) -> None:
                 elif key.char == "d":
                     command["angular"] = -0.8
             except AttributeError:
+                # Spacebar: Emergency stop
                 if key == keyboard.Key.space:
                     command["linear"] = 0.0
                     command["angular"] = 0.0
@@ -37,6 +52,7 @@ def teleop(robot: RosbridgeRobot, publish_rate: float = 10.0) -> None:
             robot.stop()
 
     def on_release(key):
+        """Process key release event: resets velocity axis to zero."""
         with command_lock:
             try:
                 if key.char in ("w", "s"):
@@ -59,6 +75,7 @@ def teleop(robot: RosbridgeRobot, publish_rate: float = 10.0) -> None:
     print("   [Esc]     : Exit teleop")
     print("=" * 50 + "\n")
 
+    # Start non-blocking OS keyboard interrupt listener
     listener = keyboard.Listener(on_press=on_press, on_release=on_release)
     listener.start()
     try:
@@ -77,6 +94,7 @@ def teleop(robot: RosbridgeRobot, publish_rate: float = 10.0) -> None:
 
 
 def main() -> None:
+    """Parse host arguments and launch keyboard teleoperation."""
     parser = argparse.ArgumentParser(description="Keyboard Teleoperation for TurtleBot3")
     parser.add_argument("host", nargs="?", default="192.168.1.206", help="Robot IP address (e.g. 192.168.1.209)")
     parser.add_argument("--port", type=int, default=9090)

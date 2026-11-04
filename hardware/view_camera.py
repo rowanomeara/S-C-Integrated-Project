@@ -1,4 +1,10 @@
-"""Display live camera feed and test ArUco marker detection via rosbridge."""
+"""Hardware: Live Camera POV & ArUco Detection Diagnostic Viewer.
+
+Streams camera imagery from the TurtleBot3 over rosbridge to verify:
+1. Video link connectivity and framerate.
+2. Camera exposure, focus, and illumination.
+3. Real-time ArUco marker detection, range, and bearing accuracy.
+"""
 
 import argparse
 import os
@@ -11,6 +17,7 @@ from src.perception.aruco_detector import ArucoDetector
 
 
 def main() -> None:
+    """Connect to TurtleBot3 camera stream and display live annotated video."""
     parser = argparse.ArgumentParser(description="Live Camera & ArUco Detection Viewer")
     parser.add_argument("host", nargs="?", default="192.168.1.206", help="Robot IP address (e.g. 192.168.1.209)")
     parser.add_argument("--port", type=int, default=9090, help="rosbridge port (default: 9090)")
@@ -23,16 +30,19 @@ def main() -> None:
         print("[CAMERA] Stream active. Press 'q' or Esc in the window to quit.\n")
         try:
             while robot.is_connected:
+                # Query compressed frame from /camera/image_raw/compressed
                 frame_bgr = robot.query_image(timeout=1.0, wait_for_new=True)
                 if frame_bgr is None:
                     continue
 
+                # Convert OpenCV BGR to RGB for detector processing
                 frame_rgb = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2RGB)
                 r, phi, annotated = aruco.detect(frame_rgb, annotate=True)
 
                 if r is not None:
                     print(f"\r  🎯 ArUco Detected: Range = {r:.2f} m | Bearing = {phi:+.2f} rad ({phi*57.2958:+.1f}°)    ", end="", flush=True)
 
+                # Render annotated video with HUD overlays
                 cv2.imshow("TurtleBot3 - Camera & ArUco Feed", annotated)
                 if cv2.waitKey(1) & 0xFF in (ord("q"), 27):
                     break

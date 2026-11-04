@@ -22,9 +22,9 @@ def analyze_controllability():
     ranks = []
     dets = []
     for th in test_angles:
-        g1 = np.array([np.cos(th), np.sin(th), 0.0])
-        g2 = np.array([0.0, 0.0, 1.0])
-        bracket = np.array([np.sin(th), -np.cos(th), 0.0])
+        g1 = np.array([np.cos(th), np.sin(th), 0.0]) # forward drive
+        g2 = np.array([0.0, 0.0, 1.0]) #in place turn
+        bracket = np.array([np.sin(th), -np.cos(th), 0.0]) #Lie bracket [g1, g2]
         Delta = np.column_stack([g1, g2, bracket])
         det_val = np.linalg.det(Delta)
         rank_val = np.linalg.matrix_rank(Delta)
